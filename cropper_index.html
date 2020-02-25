@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.6/cropper.min.js"></script>
+  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.17.0/js/canvas-to-blob.min.js"></script> -->
+
+  <style>
+    img {
+      display: block;
+      max-width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+<div>
+  <form id="upload-form" enctype="multipart/form-data" method="POST" action="">
+    <input type="file" name="file" id="profile-photo" data-select_file><br>
+  </form>
+
+  <div>
+    <h2>オリジナルイメージ</h2>
+    <div>
+      <img src="" data-origin_image>
+    </div>
+  </div>
+
+  <div>
+    <h2>切り取りエリア</h2>
+    <div><img src="" data-compress_image></div>
+    <div><button data-btn_crop>切り取り</button></div>
+  </div>
+
+  <div>
+    <h2>切り取り後のイメージ</h2>
+    <div><img src="" data-cropped_image></div>
+  </div>
+</div>
+
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function(){
+
+var handler = {
+  init: function(dom) {
+    dom.addEventListener('change', handler.getFiles, false);
+  },
+  getFiles: function(e) {
+    var file = e.target.files[0];
+    var img = document.querySelector('[data-origin_image]');
+    handler.readImageFile(file, img);
+  },
+  readImageFile: function(file, img) {
+    var reader = new FileReader(file);
+    reader.readAsDataURL(file);
+    reader.onload = function(e) {
+      let base64 = e.target.result;
+      img.setAttribute('src', base64);
+      handler.compress(img, 500, file.type);
+    }
+  },
+  compress: function(img, maxWidth, mimeType) {
+    var cvs = document.createElement('canvas');
+    img.onload = function(){
+      var width = img.naturalWidth;
+      var height = img.naturalHeight;
+      imgRatio = width / height;
+
+      if (width > maxWidth){
+        width = maxWidth;
+        height = width / imgRatio;
+      }
+
+      cvs.width = width;
+      cvs.height = height;
+      var ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, width, height);
+      // var quality = width >= 500 ? 0.5 : width > 600 ? 0.6 : 1;
+      var quality = 1;
+      var newImageData = cvs.toDataURL(mimeType, quality);
+      console.log(newImageData);
+      console.log('');
+
+      var compressImage = document.querySelector('[data-compress_image]');
+      compressImage.src = newImageData;
+
+      handler.createCropper(compressImage);
+    }
+  },
+  toBlob: function(base64) {
+    var bin = atob(base64.replace(/^.*,/, ''));
+    var buffer = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) {
+      buffer[i] = bin.charCodeAt(i);
+    }
+    var blob = new Blob([buffer.buffer], {type: 'image/jpeg'});
+    return blob;
+  },
+  createCropper: function(image) {
+    new Cropper(image, {
+      aspectRatio: 1,
+      viewMode: 1,
+      ready: function(e) {
+        var cropper = e.target.cropper;
+        var BtnCrop = document.querySelector('[data-btn_crop]');
+        BtnCrop.addEventListener('click', function(){
+          croppedCanvas = cropper.getCroppedCanvas({
+            width: 280,
+            height: 280
+          });
+
+          var imgSrc = croppedCanvas.toDataURL('image/jpeg', 0.8);
+          var CroppedImage = document.querySelector('[data-cropped_image]');
+          CroppedImage.setAttribute('src', imgSrc);
+
+          if (croppedCanvas.msToBlob) {
+            // var blob = croppedCanvas.msToBlob();
+            var blob = handler.toBlob(imgSrc);
+            console.log('--- MS Blob ---');
+            console.log(blob);
+            console.log('');
+          } else {
+            croppedCanvas.toBlob(function(blob){
+              console.log('--- Other Blob ---');
+              console.log(blob);
+              console.log('');
+              var blob = handler.toBlob(imgSrc);
+              console.log('--- new Blob ---');
+              console.log(blob);
+            });
+          }
+
+
+        }, false);
+      }
+    });
+  }
+};
+
+
+var SelectFile = document.querySelector('[data-select_file]');
+handler.init(SelectFile);
+});
+</script>
+</body>
+</html>
